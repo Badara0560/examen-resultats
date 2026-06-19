@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – DEF 2026</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="page-wrapper">
+    <header>
+      <div class="header-text">
+        <h1>Panneau d'Administration</h1>
+        <p class="header-sub">Résultats DEF 2026</p>
+      </div>
+    </header>
+    <main>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert {% if '✅' in messages[0] %}alert-success{% else %}alert-error{% endif %}">
+            {{ messages[0] }}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Import PDF -->
+      <div class="card">
+        <h2>Importer un PDF d'académie</h2>
+        <p class="card-desc">
+          Importez un fichier PDF par académie. L'académie sera automatiquement détectée depuis le PDF.
+          Si une académie existe déjà, ses données seront remplacées.
+        </p>
+        <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="pdf">Fichier PDF</label>
+            <input type="file" id="pdf" name="pdf" accept=".pdf" required />
+          </div>
+          <button type="submit" class="btn-search" onclick="this.disabled=true; this.innerHTML='⏳ Importation en cours...'; this.form.submit();">
+            📥 Importer
+          </button>
+        </form>
+        <p class="import-note">⚠️ L'importation peut prendre plusieurs minutes pour les grands fichiers.</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="card">
+        <h2>Données importées</h2>
+        {% if stats %}
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Examen</th>
+              <th>Académie</th>
+              <th>Candidats admis</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for examen, academie, total in stats %}
+            <tr>
+              <td><span class="exam-tag">{{ examen }}</span></td>
+              <td>{{ academie }}</td>
+              <td><strong>{{ total }}</strong></td>
+              <td>
+                <form method="POST" action="{{ url_for('admin_supprimer') }}"
+                      onsubmit="return confirm('Supprimer {{ examen }} / {{ academie }} ?')">
+                  <input type="hidden" name="examen" value="{{ examen }}" />
+                  <input type="hidden" name="academie" value="{{ academie }}" />
+                  <button type="submit" class="btn-delete">🗑️ Supprimer</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty-msg">Aucune donnée importée. Veuillez importer un PDF.</p>
+        {% endif %}
+      </div>
+
+      <div style="text-align:center;margin-top:1rem;">
+        <a href="{{ url_for('index') }}">← Voir le site</a> &nbsp;|&nbsp;
+        <a href="{{ url_for('admin_logout') }}">Déconnexion</a>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

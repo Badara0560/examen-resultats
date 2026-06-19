@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Résultats des Examens au Mali</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <header>
+      <div class="logo-text">🇲🇱</div>
+      <div class="header-text">
+        <p class="header-sub">MINISTÈRE DE L'ÉDUCATION NATIONALE</p>
+        <h1>Résultats des Examens au Mali</h1>
+        <p class="header-sub">Sessions 2024 &amp; 2026</p>
+      </div>
+    </header>
+
+    <main>
+      <div class="card" id="search-card">
+        <h2>Vérifier votre résultat</h2>
+        <p class="card-desc">Sélectionnez votre examen, votre académie et votre CAP, puis saisissez votre numéro de place.</p>
+
+        <form id="search-form" onsubmit="rechercherResultat(event)">
+
+          <div class="form-group">
+            <label for="examen">Type d'examen</label>
+            <select id="examen" name="examen" required onchange="chargerAcademies()">
+              <option value="">-- Sélectionnez votre examen --</option>
+              {% for ex in examens %}
+              <option value="{{ ex }}">{{ ex }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="academie">Académie d'Enseignement</label>
+            <select id="academie" name="academie" required disabled onchange="chargerCAPs()">
+              <option value="">-- Sélectionnez d'abord un examen --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="cap">CAP</label>
+            <select id="cap" name="cap" required disabled>
+              <option value="">-- Sélectionnez d'abord une académie --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="numero">Numéro de place</label>
+            <input
+              type="number"
+              id="numero"
+              name="numero"
+              placeholder="Ex: 2045"
+              required
+              min="1"
+            />
+          </div>
+
+          <button type="submit" class="btn-search" id="btn-submit">
+            <span class="btn-icon">🔍</span> Rechercher
+          </button>
+        </form>
+      </div>
+
+      <div class="card result-card" id="result-card" style="display:none;">
+        <div id="result-content"></div>
+        <button class="btn-reset" onclick="reinitialiser()">← Nouvelle recherche</button>
+      </div>
+
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <p>Aucun examen n'est disponible pour le moment.<br>
+        Veuillez contacter l'administration.</p>
+      </div>
+    </main>
+
+    <footer>
+      <p>Centre National des Examens et Concours de l'Éducation (CNECE) &mdash; Mali 2026</p>
+      <p><a href="{{ url_for('admin') }}">Administration</a></p>
+    </footer>
+  </div>
+
+  <script>
+    const examens = {{ examens | tojson }};
+
+    window.onload = function() {
+      if (examens.length === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('search-card').style.display = 'none';
+      }
+    };
+
+    async function chargerAcademies() {
+      const examen = document.getElementById('examen').value;
+      const acadSelect = document.getElementById('academie');
+      const capSelect = document.getElementById('cap');
+
+      acadSelect.disabled = true;
+      acadSelect.innerHTML = '<option value="">Chargement...</option>';
+      capSelect.disabled = true;
+      capSelect.innerHTML = '<option value="">-- Sélectionnez d\'abord une académie --</option>';
+
+      if (!examen) {
+        acadSelect.innerHTML = '<option value="">-- Sélectionnez d\'abord un examen --</option>';
+        return;
+      }
+
+      const resp = await fetch('/api/academies?examen=' + encodeURIComponent(examen));
+      const academies = await resp.json();
+
+      acadSelect.innerHTML = '<option value="">-- Sélectionnez votre académie --</option>';
+      academies.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        acadSelect.appendChild(opt);
+      });
+      acadSelect.disabled = false;
+    }
+
+    async function chargerCAPs() {
+      const examen = document.getElementById('examen').value;
+      const academie = document.getElementById('academie').value;
+      const capSelect = document.getElementById('cap');
+
+      capSelect.disabled = true;
+      capSelect.innerHTML = '<option value="">Chargement...</option>';
+
+      if (!academie) {
+        capSelect.innerHTML = '<option value="">-- Sélectionnez d\'abord une académie --</option>';
+        return;
+      }
+
+      const params = new URLSearchParams({ examen, academie });
+      const resp = await fetch('/api/caps?' + params);
+      const caps = await resp.json();
+
+      capSelect.innerHTML = '<option value="">-- Sélectionnez votre CAP --</option>';
+      caps.forEach(cap => {
+        const opt = document.createElement('option');
+        opt.value = cap;
+        opt.textContent = cap;
+        capSelect.appendChild(opt);
+      });
+      capSelect.disabled = false;
+    }
+
+    async function rechercherResultat(e) {
+      e.preventDefault();
+      const examen  = document.getElementById('examen').value;
+      const academie = document.getElementById('academie').value;
+      const cap     = document.getElementById('cap').value;
+      const numero  = document.getElementById('numero').value.trim();
+
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-icon">⏳</span> Recherche...';
+
+      const params = new URLSearchParams({ examen, academie, cap, numero });
+      const resp = await fetch('/api/recherche?' + params);
+      const data = await resp.json();
+
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">🔍</span> Rechercher';
+
+      afficherResultat(data, numero, examen);
+    }
+
+    function afficherResultat(data, numero, examen) {
+      document.getElementById('search-card').style.display = 'none';
+      const card = document.getElementById('result-card');
+      const content = document.getElementById('result-content');
+      card.style.display = 'block';
+
+      if (data.admis) {
+        const e = data.etudiant;
+        const option = e.option_type === 'CLASS' ? 'Classique' : 'Arabe';
+        const sexeLabel = e.sexe === 'M' ? 'Masculin' : e.sexe === 'F' ? 'Féminin' : e.sexe;
+
+        content.innerHTML = `
+          <div class="result-admis">
+            <div class="result-badge admis">✅ ADMIS(E)</div>
+            <h2>${e.prenom} ${e.nom}</h2>
+            <p class="result-exam-tag">${e.examen}</p>
+          </div>
+          <div class="result-details">
+            <div class="detail-row">
+              <span class="detail-label">N° de place</span>
+              <span class="detail-value">${e.numero}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Prénom</span>
+              <span class="detail-value">${e.prenom}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Nom</span>
+              <span class="detail-value">${e.nom}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Sexe</span>
+              <span class="detail-value">${sexeLabel}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">École</span>
+              <span class="detail-value">${e.ecole || '—'}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Option</span>
+              <span class="detail-value">${option}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Centre d'examen</span>
+              <span class="detail-value">${e.centre_examen}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">CAP</span>
+              <span class="detail-value">${e.cap}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Académie</span>
+              <span class="detail-value">${e.academie}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        content.innerHTML = `
+          <div class="result-echec">
+            <div class="result-badge echec">❌ NON ADMIS(E)</div>
+            <p>Le numéro de place <strong>${numero}</strong> ne figure pas dans la liste des admis <strong>${examen}</strong> pour l'académie et le CAP sélectionnés.</p>
+            <p class="echec-note">Vérifiez que vous avez bien saisi votre numéro, votre académie et votre CAP.</p>
+          </div>
+        `;
+      }
+    }
+
+    function reinitialiser() {
+      document.getElementById('search-card').style.display = 'block';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('search-form').reset();
+      document.getElementById('academie').disabled = true;
+      document.getElementById('academie').innerHTML = '<option value="">-- Sélectionnez d\'abord un examen --</option>';
+      document.getElementById('cap').disabled = true;
+      document.getElementById('cap').innerHTML = '<option value="">-- Sélectionnez d\'abord une académie --</option>';
+    }
+  </script>
+</body>
+</html>
