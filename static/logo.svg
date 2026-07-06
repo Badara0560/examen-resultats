@@ -1,0 +1,25 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Résultats des Examens au Mali">
+  <!-- Emblem disc -->
+  <circle cx="60" cy="60" r="56" fill="#ffffff"/>
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#c8960c" stroke-width="4"/>
+  <!-- Mali tricolor arc at the base -->
+  <path d="M18 84a42 42 0 0 0 84 0Z" fill="#006400"/>
+  <path d="M32 96a42 42 0 0 0 56 0Z" fill="#c8960c"/>
+  <path d="M46 104a42 42 0 0 0 28 0Z" fill="#c00000"/>
+  <!-- Graduation cap -->
+  <g>
+    <!-- mortarboard top -->
+    <path d="M60 30 L96 44 L60 58 L24 44 Z" fill="#006400"/>
+    <path d="M60 34.5 L86 44 L60 53.5 L34 44 Z" fill="#0a7a0a"/>
+    <!-- cap band -->
+    <path d="M42 50.5 V64 c0 6 8 10 18 10 s18 -4 18 -10 V50.5 L60 58 Z" fill="#1a5c1a"/>
+    <path d="M42 50.5 V64 c0 6 8 10 18 10 s18 -4 18 -10 V50.5" fill="none" stroke="#006400" stroke-width="1.5"/>
+    <!-- tassel -->
+    <path d="M96 44 V62" stroke="#c8960c" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="96" cy="44" r="3" fill="#c8960c"/>
+    <path d="M96 62 l-3 8 h6 Z" fill="#c00000"/>
+  </g>
+  <!-- Check mark accent -->
+  <circle cx="88" cy="82" r="15" fill="#006400" stroke="#ffffff" stroke-width="3"/>
+  <path d="M81 82 l5 5 l9 -11" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
