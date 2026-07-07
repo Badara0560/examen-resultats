@@ -8,14 +8,40 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
-  <div class="page-wrapper">
-    <header>
-      <div class="header-text">
-        <h1>Panneau d'Administration</h1>
-        <p class="header-sub">Résultats DEF 2026</p>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='logo.svg') }}" alt="Logo" />
+        <div>
+          <div class="brand-title">Administration</div>
+          <div class="brand-sub">RÉPUBLIQUE DU MALI</div>
+        </div>
       </div>
-    </header>
-    <main>
+      <nav class="sidebar-nav">
+        <span class="nav-label">Menu</span>
+        <a class="nav-item" href="{{ url_for('index') }}">
+          <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Vérifier un résultat
+        </a>
+        <a class="nav-item active" href="{{ url_for('admin') }}">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg>
+          Administration
+        </a>
+        <a class="nav-item" href="{{ url_for('admin_logout') }}">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Déconnexion
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        CNECE &mdash; Mali 2026<br>
+        Designed by <strong>EMTI</strong>
+      </div>
+    </aside>
+    <main class="app-main">
+      <div class="page-head">
+        <h1>Panneau d'Administration</h1>
+        <p>Gestion des résultats DEF</p>
+      </div>
 
       {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -45,7 +71,7 @@
       </div>
 
       <!-- Stats -->
-      <div class="card">
+      <div class="card wide">
         <h2>Données importées</h2>
         {% if stats %}
         <table class="stats-table">
@@ -78,11 +104,6 @@
         {% else %}
         <p class="empty-msg">Aucune donnée importée. Veuillez importer un PDF.</p>
         {% endif %}
-      </div>
-
-      <div style="text-align:center;margin-top:1rem;">
-        <a href="{{ url_for('index') }}">← Voir le site</a> &nbsp;|&nbsp;
-        <a href="{{ url_for('admin_logout') }}">Déconnexion</a>
       </div>
 
     </main>

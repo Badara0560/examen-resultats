@@ -8,18 +8,40 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
-  <div class="page-wrapper">
+  <div class="app-shell">
 
-    <header>
-      <img class="logo-img" src="{{ url_for('static', filename='logo.svg') }}" alt="Résultats des Examens au Mali" />
-      <div class="header-text">
-        <p class="header-sub">MINISTÈRE DE L'ÉDUCATION NATIONALE</p>
-        <h1>Résultats des Examens au Mali</h1>
-        <p class="header-sub">Sessions 2024 &amp; 2026</p>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="{{ url_for('static', filename='logo.svg') }}" alt="Logo" />
+        <div>
+          <div class="brand-title">Résultats Examens</div>
+          <div class="brand-sub">RÉPUBLIQUE DU MALI</div>
+        </div>
       </div>
-    </header>
+      <nav class="sidebar-nav">
+        <span class="nav-label">Menu</span>
+        <a class="nav-item active" href="{{ url_for('index') }}">
+          <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Vérifier un résultat
+        </a>
+        <a class="nav-item" href="{{ url_for('admin') }}">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg>
+          Administration
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        Centre National des Examens et Concours de l'Éducation (CNECE)<br>
+        Mali 2026<br>
+        Designed by <strong>EMTI</strong>
+      </div>
+    </aside>
 
-    <main>
+    <main class="app-main">
+      <div class="page-head">
+        <h1>Résultats des Examens au Mali</h1>
+        <p>Sessions 2024 &amp; 2026 &mdash; Ministère de l'Éducation Nationale</p>
+      </div>
+
       <div class="card" id="search-card">
         <h2>Vérifier votre résultat</h2>
         <p class="card-desc">Sélectionnez votre examen, votre académie et votre CAP, puis saisissez votre numéro de place.</p>
@@ -78,12 +100,6 @@
         Veuillez contacter l'administration.</p>
       </div>
     </main>
-
-    <footer>
-      <p>Centre National des Examens et Concours de l'Éducation (CNECE) &mdash; Mali 2026</p>
-      <p>Designed by <strong>EMTI</strong></p>
-      <p><a href="{{ url_for('admin') }}">Administration</a></p>
-    </footer>
   </div>
 
   <script>
