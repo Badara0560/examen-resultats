@@ -4,6 +4,7 @@ import re
 import sqlite3
 import threading
 import time
+from collections import OrderedDict
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 import pdfplumber
@@ -26,20 +27,44 @@ DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
 
 
 # ── DB connection helper (WAL + busy timeout for high read concurrency) ──────
+#
+# Reads dominate (100k students each looking up one result). Two cost centers
+# hurt on a constrained instance: (1) re-opening the DB + re-running PRAGMAs on
+# every request, and (2) hitting the slow disk. We fix both by keeping ONE
+# persistent connection per worker thread (gthread) with a big page cache +
+# mmap so hot pages are served from RAM. The DB is effectively read-only at
+# runtime (only the rare admin import writes), so this is safe.
 
-def get_db(read_only=False):
-    """Open a short-lived SQLite connection tuned for concurrent reads.
+_MMAP_BYTES = 256 * 1024 * 1024   # map up to 256MB of the DB into memory
+_CACHE_KB = 131072                 # 128MB SQLite page cache per connection
+_tls = threading.local()
 
-    WAL mode (set once in init_db) lets many readers run while a writer works,
-    which is what a 100k-user read-heavy search workload needs. busy_timeout
-    makes the rare writer (admin import) wait instead of raising "database is
-    locked".
-    """
-    conn = sqlite3.connect(DB_PATH, timeout=15)
+
+def _tune(conn, read_only):
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA busy_timeout = 15000')
+    conn.execute('PRAGMA cache_size = -%d' % _CACHE_KB)
+    conn.execute('PRAGMA mmap_size = %d' % _MMAP_BYTES)
+    conn.execute('PRAGMA temp_store = MEMORY')
     if read_only:
         conn.execute('PRAGMA query_only = 1')
+    return conn
+
+
+def get_db(read_only=False):
+    """Return a tuned SQLite connection.
+
+    Read path: reuse a persistent per-thread read-only connection (no repeated
+    open/PRAGMA overhead). Write path: a fresh throwaway connection so the
+    admin import/delete can mutate without touching the pooled read handles.
+    """
+    if not read_only:
+        return _tune(sqlite3.connect(DB_PATH, timeout=15), read_only=False)
+    conn = getattr(_tls, 'conn', None)
+    if conn is None:
+        conn = _tune(sqlite3.connect(DB_PATH, timeout=15, check_same_thread=False),
+                     read_only=True)
+        _tls.conn = conn
     return conn
 
 # Known multi-word CAP values (order matters - check longer ones first)
@@ -673,15 +698,39 @@ def _cache_set(key, value):
 def invalidate_cache():
     with _cache_lock:
         _cache.clear()
+    with _result_lock:
+        _result_cache.clear()
+
+
+# Bounded LRU cache for individual search results — absorbs refreshes/retries
+# during a results rush without re-querying the DB.
+_result_lock = threading.Lock()
+_result_cache = OrderedDict()
+_RESULT_MAX = 50000
+
+
+def _result_cache_get(key):
+    with _result_lock:
+        val = _result_cache.get(key)
+        if val is not None:
+            _result_cache.move_to_end(key)
+        return val
+
+
+def _result_cache_set(key, value):
+    with _result_lock:
+        _result_cache[key] = value
+        _result_cache.move_to_end(key)
+        if len(_result_cache) > _RESULT_MAX:
+            _result_cache.popitem(last=False)
 
 
 def get_examens():
     cached = _cache_get('examens')
     if cached is not None:
         return cached
-    conn = get_db(read_only=True)
+    conn = get_db(read_only=True)  # pooled per-thread connection; do not close
     rows = [r[0] for r in conn.execute('SELECT DISTINCT examen FROM etudiants ORDER BY examen')]
-    conn.close()
     return _cache_set('examens', rows)
 
 
@@ -690,10 +739,9 @@ def get_academies(examen):
     cached = _cache_get(key)
     if cached is not None:
         return cached
-    conn = get_db(read_only=True)
+    conn = get_db(read_only=True)  # pooled per-thread connection; do not close
     rows = [r[0] for r in conn.execute(
         'SELECT DISTINCT academie FROM etudiants WHERE examen = ? ORDER BY academie', (examen,))]
-    conn.close()
     return _cache_set(key, rows)
 
 
@@ -702,11 +750,10 @@ def get_caps_for_academie(examen, academie):
     cached = _cache_get(key)
     if cached is not None:
         return cached
-    conn = get_db(read_only=True)
+    conn = get_db(read_only=True)  # pooled per-thread connection; do not close
     rows = [r[0] for r in conn.execute(
         'SELECT DISTINCT cap FROM etudiants WHERE examen = ? AND academie = ? ORDER BY cap',
         (examen, academie))]
-    conn.close()
     return _cache_set(key, rows)
 
 
@@ -733,11 +780,11 @@ def too_large(_):
 def healthz():
     """Lightweight liveness/readiness probe for Render."""
     try:
-        conn = get_db(read_only=True)
+        conn = get_db(read_only=True)  # pooled per-thread connection; do not close
         conn.execute('SELECT 1').fetchone()
-        conn.close()
         return jsonify({'status': 'ok'})
     except Exception:
+        _tls.conn = None
         return jsonify({'status': 'degraded'}), 503
 
 
@@ -783,9 +830,15 @@ def api_recherche():
     except ValueError:
         return jsonify({'error': 'Numéro de place invalide'}), 400
 
-    conn = None
+    # Serve repeat lookups (refreshes, retries during a results rush) from a
+    # small in-process cache instead of re-querying the DB.
+    ckey = (examen, numero_int, academie, cap)
+    cached = _result_cache_get(ckey)
+    if cached is not None:
+        return jsonify(cached)
+
     try:
-        conn = get_db(read_only=True)
+        conn = get_db(read_only=True)  # pooled per-thread connection; do not close
         if cap:
             row = conn.execute('''
                 SELECT * FROM etudiants
@@ -800,15 +853,13 @@ def api_recherche():
                 LIMIT 1
             ''', (examen, numero_int, academie)).fetchone()
     except Exception:
+        # Drop a possibly-broken pooled handle so the next request reconnects.
+        _tls.conn = None
         return jsonify({'error': 'Service momentanément indisponible. Réessayez.'}), 503
-    finally:
-        if conn is not None:
-            conn.close()
 
-    if row:
-        return jsonify({'admis': True, 'etudiant': dict(row)})
-    else:
-        return jsonify({'admis': False})
+    payload = {'admis': True, 'etudiant': dict(row)} if row else {'admis': False}
+    _result_cache_set(ckey, payload)
+    return jsonify(payload)
 
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -816,11 +867,10 @@ def admin():
     if not session.get('admin'):
         return redirect(url_for('admin_login'))
 
-    conn = get_db(read_only=True)
+    conn = get_db(read_only=True)  # pooled per-thread connection; do not close
     c = conn.cursor()
     c.execute('SELECT examen, academie, COUNT(*) as total FROM etudiants GROUP BY examen, academie ORDER BY examen, academie')
     stats = c.fetchall()
-    conn.close()
 
     examens = sorted(set(get_examens()) | {'DEF 2026', 'BAC 2026', 'BT 2026'})
     total = sum(s[2] for s in stats)
