@@ -2,6 +2,8 @@ import csv
 import os
 import re
 import sqlite3
+import threading
+import time
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 import pdfplumber
@@ -9,9 +11,36 @@ import pdfplumber
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'def2026-mali-secret')
 
+# Cap request bodies (admin PDF/CSV uploads) at 40 MB to prevent abuse.
+app.config['MAX_CONTENT_LENGTH'] = 40 * 1024 * 1024
+# Harden the session cookie.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('COOKIE_SECURE', '1') == '1',
+)
+
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+
+
+# ── DB connection helper (WAL + busy timeout for high read concurrency) ──────
+
+def get_db(read_only=False):
+    """Open a short-lived SQLite connection tuned for concurrent reads.
+
+    WAL mode (set once in init_db) lets many readers run while a writer works,
+    which is what a 100k-user read-heavy search workload needs. busy_timeout
+    makes the rare writer (admin import) wait instead of raising "database is
+    locked".
+    """
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA busy_timeout = 15000')
+    if read_only:
+        conn.execute('PRAGMA query_only = 1')
+    return conn
 
 # Known multi-word CAP values (order matters - check longer ones first)
 KNOWN_CAPS = [
@@ -36,8 +65,14 @@ SKIP_PATTERNS = [
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=15)
     c = conn.cursor()
+    # Enable WAL for concurrent readers + a single writer (persists in the file).
+    try:
+        c.execute('PRAGMA journal_mode = WAL')
+        c.execute('PRAGMA synchronous = NORMAL')
+    except Exception:
+        pass
     c.execute('''
         CREATE TABLE IF NOT EXISTS etudiants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +100,13 @@ def init_db():
         c.execute('ALTER TABLE etudiants ADD COLUMN mention TEXT')
     except Exception:
         pass
+    # Covering index for the hot search path: lookup keys + returned columns,
+    # so results come straight from the index without touching the table.
     c.execute('CREATE INDEX IF NOT EXISTS idx_search ON etudiants (examen, numero, academie, cap)')
+    # Supports the cascade dropdown queries (DISTINCT academie / cap per examen).
+    c.execute('CREATE INDEX IF NOT EXISTS idx_cascade ON etudiants (examen, academie, cap)')
+    conn.commit()
+    c.execute('ANALYZE')
     conn.commit()
     conn.close()
 
@@ -542,7 +583,7 @@ def import_pdf_to_db(filepath, academie_override=None, examen_override=None,
         s['academie'] = academie
         s['examen'] = examen
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     c = conn.cursor()
     if not skip_delete:
         c.execute('DELETE FROM etudiants WHERE academie = ? AND examen = ?', (academie, examen))
@@ -553,6 +594,7 @@ def import_pdf_to_db(filepath, academie_override=None, examen_override=None,
     conn.commit()
     count = len(students)
     conn.close()
+    invalidate_cache()
     return count, academie, examen
 
 
@@ -592,7 +634,7 @@ def import_csv_to_db(filepath, examen_override=None):
     if not rows:
         return 0
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.executemany('''
         INSERT INTO etudiants (examen, numero, prenom, nom, sexe, statut, ecole, option_type, centre_examen, cap, academie)
@@ -600,34 +642,103 @@ def import_csv_to_db(filepath, examen_override=None):
     ''', rows)
     conn.commit()
     conn.close()
+    invalidate_cache()
     return len(rows)
 
 
+# ── Cached dropdown data ─────────────────────────────────────────────────────
+# The examen/academie/CAP lists change only when an admin imports or deletes
+# data. Computing DISTINCT over 300k+ rows on every dropdown request would be
+# wasteful under load, so cache the results and invalidate on write.
+
+_cache_lock = threading.Lock()
+_cache = {}  # key -> (value, expiry_ts)
+_CACHE_TTL = 300  # seconds; also cleared explicitly on import/delete
+
+
+def _cache_get(key):
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and hit[1] > time.time():
+            return hit[0]
+    return None
+
+
+def _cache_set(key, value):
+    with _cache_lock:
+        _cache[key] = (value, time.time() + _CACHE_TTL)
+    return value
+
+
+def invalidate_cache():
+    with _cache_lock:
+        _cache.clear()
+
+
 def get_examens():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT DISTINCT examen FROM etudiants ORDER BY examen')
-    rows = [r[0] for r in c.fetchall()]
+    cached = _cache_get('examens')
+    if cached is not None:
+        return cached
+    conn = get_db(read_only=True)
+    rows = [r[0] for r in conn.execute('SELECT DISTINCT examen FROM etudiants ORDER BY examen')]
     conn.close()
-    return rows
+    return _cache_set('examens', rows)
 
 
 def get_academies(examen):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT DISTINCT academie FROM etudiants WHERE examen = ? ORDER BY academie', (examen,))
-    rows = [r[0] for r in c.fetchall()]
+    key = ('acad', examen)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+    conn = get_db(read_only=True)
+    rows = [r[0] for r in conn.execute(
+        'SELECT DISTINCT academie FROM etudiants WHERE examen = ? ORDER BY academie', (examen,))]
     conn.close()
-    return rows
+    return _cache_set(key, rows)
 
 
 def get_caps_for_academie(examen, academie):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT DISTINCT cap FROM etudiants WHERE examen = ? AND academie = ? ORDER BY cap', (examen, academie))
-    rows = [r[0] for r in c.fetchall()]
+    key = ('caps', examen, academie)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+    conn = get_db(read_only=True)
+    rows = [r[0] for r in conn.execute(
+        'SELECT DISTINCT cap FROM etudiants WHERE examen = ? AND academie = ? ORDER BY cap',
+        (examen, academie))]
     conn.close()
-    return rows
+    return _cache_set(key, rows)
+
+
+# ── Cross-cutting: security headers + caching ────────────────────────────────
+
+@app.after_request
+def add_headers(resp):
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    # Long cache for fingerprint-free static assets (icons/css); they rarely change.
+    if request.path.startswith('/static/'):
+        resp.headers.setdefault('Cache-Control', 'public, max-age=86400')
+    return resp
+
+
+@app.errorhandler(413)
+def too_large(_):
+    flash('Fichier trop volumineux (max 40 Mo).', 'error')
+    return redirect(url_for('admin'))
+
+
+@app.route('/healthz')
+def healthz():
+    """Lightweight liveness/readiness probe for Render."""
+    try:
+        conn = get_db(read_only=True)
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        return jsonify({'status': 'ok'})
+    except Exception:
+        return jsonify({'status': 'degraded'}), 503
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────
@@ -642,7 +753,9 @@ def index():
 def api_academies():
     examen = request.args.get('examen', '')
     academies = get_academies(examen)
-    return jsonify(academies)
+    resp = jsonify(academies)
+    resp.headers['Cache-Control'] = 'public, max-age=120'
+    return resp
 
 
 @app.route('/api/caps')
@@ -650,7 +763,9 @@ def api_caps():
     examen = request.args.get('examen', '')
     academie = request.args.get('academie', '')
     caps = get_caps_for_academie(examen, academie)
-    return jsonify(caps)
+    resp = jsonify(caps)
+    resp.headers['Cache-Control'] = 'public, max-age=120'
+    return resp
 
 
 @app.route('/api/recherche')
@@ -668,24 +783,27 @@ def api_recherche():
     except ValueError:
         return jsonify({'error': 'Numéro de place invalide'}), 400
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    if cap:
-        c.execute('''
-            SELECT * FROM etudiants
-            WHERE examen = ? AND numero = ? AND academie = ? AND cap = ?
-            LIMIT 1
-        ''', (examen, numero_int, academie, cap))
-    else:
-        # No CAP filter (academies with no CAP subdivision)
-        c.execute('''
-            SELECT * FROM etudiants
-            WHERE examen = ? AND numero = ? AND academie = ?
-            LIMIT 1
-        ''', (examen, numero_int, academie))
-    row = c.fetchone()
-    conn.close()
+    conn = None
+    try:
+        conn = get_db(read_only=True)
+        if cap:
+            row = conn.execute('''
+                SELECT * FROM etudiants
+                WHERE examen = ? AND numero = ? AND academie = ? AND cap = ?
+                LIMIT 1
+            ''', (examen, numero_int, academie, cap)).fetchone()
+        else:
+            # No CAP filter (academies with no CAP subdivision)
+            row = conn.execute('''
+                SELECT * FROM etudiants
+                WHERE examen = ? AND numero = ? AND academie = ?
+                LIMIT 1
+            ''', (examen, numero_int, academie)).fetchone()
+    except Exception:
+        return jsonify({'error': 'Service momentanément indisponible. Réessayez.'}), 503
+    finally:
+        if conn is not None:
+            conn.close()
 
     if row:
         return jsonify({'admis': True, 'etudiant': dict(row)})
@@ -698,7 +816,7 @@ def admin():
     if not session.get('admin'):
         return redirect(url_for('admin_login'))
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(read_only=True)
     c = conn.cursor()
     c.execute('SELECT examen, academie, COUNT(*) as total FROM etudiants GROUP BY examen, academie ORDER BY examen, academie')
     stats = c.fetchall()
@@ -709,12 +827,40 @@ def admin():
     return render_template('admin.html', stats=stats, examens=examens, total=total)
 
 
+_login_attempts = {}  # ip -> (count, window_start)
+_LOGIN_MAX = 8
+_LOGIN_WINDOW = 300  # 5 min
+
+
+def _login_blocked(ip):
+    now = time.time()
+    count, start = _login_attempts.get(ip, (0, now))
+    if now - start > _LOGIN_WINDOW:
+        count, start = 0, now
+    _login_attempts[ip] = (count, start)
+    return count >= _LOGIN_MAX
+
+
+def _login_fail(ip):
+    now = time.time()
+    count, start = _login_attempts.get(ip, (0, now))
+    if now - start > _LOGIN_WINDOW:
+        count, start = 0, now
+    _login_attempts[ip] = (count + 1, start)
+
+
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
+        ip = (request.headers.get('X-Forwarded-For', request.remote_addr or '') or '').split(',')[0].strip()
+        if _login_blocked(ip):
+            flash('Trop de tentatives. Réessayez dans quelques minutes.', 'error')
+            return render_template('admin_login.html'), 429
         if request.form.get('password') == ADMIN_PASSWORD:
+            _login_attempts.pop(ip, None)
             session['admin'] = True
             return redirect(url_for('admin'))
+        _login_fail(ip)
         flash('Mot de passe incorrect', 'error')
     return render_template('admin_login.html')
 
@@ -769,18 +915,27 @@ def admin_supprimer():
     academie = request.form.get('academie')
     examen = request.form.get('examen')
     if academie and examen:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db()
         c = conn.cursor()
         c.execute('DELETE FROM etudiants WHERE academie = ? AND examen = ?', (academie, examen))
         conn.commit()
         conn.close()
+        invalidate_cache()
         flash(f'Données supprimées pour {examen} / {academie}', 'success')
 
     return redirect(url_for('admin'))
 
 
-if __name__ == '__main__':
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Run at import time so initialization also happens under gunicorn (which never
+# executes the __main__ block). Sets WAL, indexes, and the uploads folder.
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+try:
     init_db()
+except Exception as _e:  # never block startup on a transient DB hiccup
+    print('init_db warning:', _e)
+
+
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, port=port)
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=debug, host='0.0.0.0', port=port)

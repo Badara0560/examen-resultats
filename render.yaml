@@ -2,8 +2,16 @@ services:
   - type: web
     name: examen-resultats
     env: python
+    plan: free
+    healthCheckPath: /healthz
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --graceful-timeout 30 --preload --max-requests 2000 --max-requests-jitter 200 --access-logfile - --error-logfile -
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
       - key: ADMIN_PASSWORD
-        generateValue: false
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"

@@ -3,3 +3,7 @@ __pycache__/
 uploads/
 *.egg-info/
 .env
+
+# SQLite WAL sidecars
+database.db-wal
+database.db-shm
