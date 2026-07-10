@@ -551,11 +551,7 @@ def import_pdf_to_db(filepath, academie_override=None, examen_override=None,
     return count, academie, examen
 
 
-CSV_COLUMNS = ['examen', 'numero', 'prenom', 'nom', 'sexe', 'statut',
-               'ecole', 'option_type', 'centre_examen', 'cap', 'academie']
-
-
-def import_csv_to_db(filepath):
+def import_csv_to_db(filepath, examen_override=None):
     """Import students from a CSV file (semicolon or comma separated).
 
     Expected header (order free, accents ignored): examen, numero, prenom,
@@ -575,7 +571,7 @@ def import_csv_to_db(filepath):
             except (ValueError, TypeError):
                 continue
             rows.append({
-                'examen': (g.get('examen') or 'DEF').upper(),
+                'examen': examen_override or (g.get('examen') or 'DEF').upper(),
                 'numero': numero,
                 'prenom': g.get('prenom', ''),
                 'nom': (g.get('nom') or '').upper(),
@@ -701,16 +697,11 @@ def admin():
     c = conn.cursor()
     c.execute('SELECT examen, academie, COUNT(*) as total FROM etudiants GROUP BY examen, academie ORDER BY examen, academie')
     stats = c.fetchall()
-    c.execute('SELECT DISTINCT academie FROM etudiants ORDER BY academie')
-    academies = [r[0] for r in c.fetchall()]
-    c.execute('SELECT DISTINCT cap FROM etudiants ORDER BY cap')
-    caps = [r[0] for r in c.fetchall()]
     conn.close()
 
-    examens = sorted(set(get_examens()) | {'DEF', 'BAC', 'BT'})
+    examens = sorted(set(get_examens()) | {'DEF 2026', 'BAC 2026', 'BT 2026'})
     total = sum(s[2] for s in stats)
-    return render_template('admin.html', stats=stats, academies=academies,
-                           caps=caps, examens=examens, total=total)
+    return render_template('admin.html', stats=stats, examens=examens, total=total)
 
 
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -744,65 +735,24 @@ def admin_importer():
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
 
+    # Optional exam-type override (e.g. "BAC 2026"); empty = auto-detect
+    examen_override = (request.form.get('examen') or '').strip().upper() or None
+
     try:
         if lower.endswith('.csv'):
-            count = import_csv_to_db(filepath)
+            count = import_csv_to_db(filepath, examen_override=examen_override)
             if count:
-                flash(f'{count} candidats importés depuis le fichier CSV.', 'success')
+                label = examen_override or 'CSV'
+                flash(f'{count} candidats importés ({label}).', 'success')
             else:
                 flash('Aucune ligne valide dans le CSV. Vérifiez les colonnes (numero, nom, academie, ...).', 'error')
         else:
-            count, academie, examen = import_pdf_to_db(filepath, use_universal=True)
+            count, academie, examen = import_pdf_to_db(filepath, use_universal=True,
+                                                       examen_override=examen_override)
             flash(f'{count} candidats importés : {examen} / {academie}', 'success')
     except Exception as e:
         flash(f'Erreur lors de l\'importation : {str(e)}', 'error')
 
-    return redirect(url_for('admin'))
-
-
-@app.route('/admin/ajouter', methods=['POST'])
-def admin_ajouter():
-    if not session.get('admin'):
-        return redirect(url_for('admin_login'))
-
-    examen   = (request.form.get('examen') or '').strip().upper()
-    academie = (request.form.get('academie') or '').strip().upper()
-    cap      = (request.form.get('cap') or '').strip().upper()
-    prenom   = (request.form.get('prenom') or '').strip()
-    nom      = (request.form.get('nom') or '').strip().upper()
-    sexe     = (request.form.get('sexe') or '').strip().upper()
-    statut   = (request.form.get('statut') or 'REG').strip().upper()
-    option   = (request.form.get('option_type') or 'CLASS').strip().upper()
-    ecole    = (request.form.get('ecole') or '').strip()
-    centre   = (request.form.get('centre_examen') or '').strip()
-
-    try:
-        numero = int(request.form.get('numero', ''))
-    except (ValueError, TypeError):
-        flash('Numéro de place invalide.', 'error')
-        return redirect(url_for('admin'))
-
-    if not examen or not academie or not (nom or prenom):
-        flash('Examen, académie et nom du candidat sont obligatoires.', 'error')
-        return redirect(url_for('admin'))
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT 1 FROM etudiants WHERE examen = ? AND numero = ? AND academie = ? AND cap = ? LIMIT 1',
-              (examen, numero, academie, cap))
-    if c.fetchone():
-        conn.close()
-        flash(f'Le numéro {numero} existe déjà pour {examen} / {academie} / {cap}.', 'error')
-        return redirect(url_for('admin'))
-
-    c.execute('''
-        INSERT INTO etudiants (examen, numero, prenom, nom, sexe, statut, ecole, option_type, centre_examen, cap, academie)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (examen, numero, prenom, nom, sexe, statut, ecole, option, centre, cap, academie))
-    conn.commit()
-    conn.close()
-
-    flash(f'Candidat n° {numero} ({prenom} {nom}) ajouté : {examen} / {academie}.', 'success')
     return redirect(url_for('admin'))
 
 

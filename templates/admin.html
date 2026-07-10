@@ -14,7 +14,6 @@
       <img src="{{ url_for('static', filename='logo.svg') }}" alt="Résultats des Examens au Mali" />
       <span class="brand-name">
         <strong>Résultats des Examens</strong>
-        <small>Ministère de l'Éducation Nationale du Mali</small>
       </span>
     </a>
     <nav class="topnav">
@@ -36,7 +35,7 @@
   <main class="container">
     <div class="page-head">
       <h1>Administration</h1>
-      <p>Importez des fichiers de résultats, ajoutez des candidats individuellement et gérez les données publiées.
+      <p>Importez les résultats des examens (DEF, BAC, BT, ...) et gérez les données publiées.
       {% if total %}<span class="stat-chip" style="margin-left:.4rem;"><strong>{{ "{:,}".format(total).replace(',', ' ') }}</strong> candidats en base</span>{% endif %}
       </p>
     </div>
@@ -54,114 +53,41 @@
       {% endfor %}
     {% endwith %}
 
-    <div class="admin-grid">
-
-      <!-- Import file -->
-      <div class="card">
-        <h2>Importer un fichier de résultats</h2>
-        <p class="card-desc">
-          PDF officiel d'académie (détection automatique) ou fichier CSV.
-        </p>
-        <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data"
-              onsubmit="const b=document.getElementById('btn-import'); b.disabled=true; b.textContent='Importation en cours...';">
-          <div class="form-group">
-            <label for="pdf">Fichier PDF ou CSV</label>
-            <input type="file" id="pdf" name="pdf" accept=".pdf,.csv" required />
-            <p class="form-hint">
-              PDF : les données existantes de la même académie sont remplacées.<br>
-              CSV : colonnes attendues : examen, numero, prenom, nom, sexe, statut, ecole, option_type, centre_examen, cap, academie. Les lignes sont ajoutées sans remplacer.
-            </p>
-          </div>
-          <button type="submit" class="btn btn-primary" id="btn-import">
-            <svg viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/></svg>
-            Importer
-          </button>
-          <p class="form-hint">L'importation d'un grand PDF peut prendre plusieurs minutes.</p>
-        </form>
-      </div>
-
-      <!-- Add single result -->
-      <div class="card">
-        <h2>Ajouter un résultat</h2>
-        <p class="card-desc">Saisie manuelle d'un candidat admis (correction ou ajout ponctuel).</p>
-        <form method="POST" action="{{ url_for('admin_ajouter') }}">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="add-examen">Examen</label>
-              <input type="text" id="add-examen" name="examen" list="list-examens" placeholder="DEF" required />
-              <datalist id="list-examens">
-                {% for ex in examens %}<option value="{{ ex }}"></option>{% endfor %}
-              </datalist>
-            </div>
-            <div class="form-group">
-              <label for="add-numero">Numéro de place</label>
-              <input type="number" id="add-numero" name="numero" min="1" placeholder="Ex : 2045" required />
-            </div>
-            <div class="form-group">
-              <label for="add-prenom">Prénom(s)</label>
-              <input type="text" id="add-prenom" name="prenom" placeholder="Aminata" />
-            </div>
-            <div class="form-group">
-              <label for="add-nom">Nom</label>
-              <input type="text" id="add-nom" name="nom" placeholder="TRAORÉ" required />
-            </div>
-            <div class="form-group">
-              <label for="add-sexe">Sexe</label>
-              <select id="add-sexe" name="sexe">
-                <option value="">Non précisé</option>
-                <option value="F">Féminin</option>
-                <option value="M">Masculin</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="add-statut">Statut</label>
-              <select id="add-statut" name="statut">
-                <option value="REG">Régulier (REG)</option>
-                <option value="LIB">Libre (LIB)</option>
-                <option value="OFF">Officiel (OFF)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="add-option">Option</label>
-              <select id="add-option" name="option_type">
-                <option value="CLASS">Classique</option>
-                <option value="ARABE">Arabe</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="add-cap">CAP</label>
-              <input type="text" id="add-cap" name="cap" list="list-caps" placeholder="LAFIABOUGOU" />
-              <datalist id="list-caps">
-                {% for c in caps %}<option value="{{ c }}"></option>{% endfor %}
-              </datalist>
-            </div>
-            <div class="form-group span-2">
-              <label for="add-academie">Académie d'Enseignement</label>
-              <input type="text" id="add-academie" name="academie" list="list-academies"
-                     placeholder="ACADEMIE D'ENSEIGNEMENT DE BAMAKO RIVE GAUCHE" required />
-              <datalist id="list-academies">
-                {% for a in academies %}<option value="{{ a }}"></option>{% endfor %}
-              </datalist>
-            </div>
-            <div class="form-group">
-              <label for="add-ecole">École</label>
-              <input type="text" id="add-ecole" name="ecole" placeholder="École fondamentale de..." />
-            </div>
-            <div class="form-group">
-              <label for="add-centre">Centre d'examen</label>
-              <input type="text" id="add-centre" name="centre_examen" placeholder="Centre de..." />
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-            Ajouter le candidat
-          </button>
-        </form>
-      </div>
+    <!-- Import results file -->
+    <div class="card import-card">
+      <h2>Importer un fichier de résultats</h2>
+      <p class="card-desc">
+        PDF officiel d'académie ou fichier CSV. Choisissez l'examen concerné ou laissez la détection automatique.
+      </p>
+      <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data"
+            onsubmit="const b=document.getElementById('btn-import'); b.disabled=true; b.textContent='Importation en cours...';">
+        <div class="form-group">
+          <label for="examen">Examen</label>
+          <input type="text" id="examen" name="examen" list="list-examens"
+                 placeholder="Détection automatique" />
+          <datalist id="list-examens">
+            {% for ex in examens %}<option value="{{ ex }}"></option>{% endfor %}
+          </datalist>
+          <p class="form-hint">Ex : DEF 2026, BAC 2026, BT 2026. Laissez vide pour détecter depuis le fichier.</p>
+        </div>
+        <div class="form-group">
+          <label for="pdf">Fichier PDF ou CSV</label>
+          <input type="file" id="pdf" name="pdf" accept=".pdf,.csv" required />
+          <p class="form-hint">
+            PDF : les données existantes de la même académie et du même examen sont remplacées.<br>
+            CSV : colonnes attendues : examen, numero, prenom, nom, sexe, statut, ecole, option_type, centre_examen, cap, academie.
+          </p>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-import">
+          <svg viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/></svg>
+          Importer
+        </button>
+        <p class="form-hint">L'importation d'un grand PDF peut prendre plusieurs minutes.</p>
+      </form>
     </div>
 
     <!-- Data -->
-    <div class="card" style="margin-top:1.4rem;">
+    <div class="card">
       <h2>Données publiées</h2>
       <p class="card-desc">Candidats admis actuellement consultables par le public.</p>
       {% if stats %}
@@ -195,7 +121,7 @@
         </table>
       </div>
       {% else %}
-      <p class="empty-msg">Aucune donnée publiée pour le moment. Importez un fichier ou ajoutez un candidat pour commencer.</p>
+      <p class="empty-msg">Aucune donnée publiée pour le moment. Importez un fichier pour commencer.</p>
       {% endif %}
     </div>
   </main>
