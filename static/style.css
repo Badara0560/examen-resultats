@@ -302,6 +302,63 @@ a:hover { text-decoration: underline; }
 .result-status.ok { background: var(--ok-bg); color: var(--ok); }
 .result-status.ko { background: var(--ko-bg); color: var(--ko); }
 
+/* ── Status emblem (big animated circle) ── */
+.result-emblem {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  animation: emblem-pop .45s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.result-emblem::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 0;
+}
+.result-emblem.ok {
+  background: radial-gradient(circle at 50% 35%, #16a34a, var(--ok));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ok) 45%, transparent);
+}
+.result-emblem.ok::after {
+  background: var(--ok);
+  animation: emblem-halo 1.6s ease-out .3s infinite;
+}
+.result-emblem.ko {
+  background: radial-gradient(circle at 50% 35%, #d9463d, var(--ko));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ko) 40%, transparent);
+}
+.result-emblem svg {
+  width: 52px; height: 52px;
+  stroke: #fff; fill: none;
+  stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.result-emblem svg path {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: draw-check .5s ease-out .25s forwards;
+}
+@keyframes emblem-pop {
+  0%   { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes emblem-halo {
+  0%   { transform: scale(1);    opacity: .5; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes draw-check {
+  to { stroke-dashoffset: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-emblem, .result-emblem svg path, .result-emblem.ok::after { animation: none; }
+  .result-emblem svg path { stroke-dashoffset: 0; }
+}
+
 .result-head { text-align: center; margin-bottom: 1.4rem; }
 .result-head h2 { font-size: 1.45rem; font-weight: 800; letter-spacing: -.01em; }
 .result-exam {

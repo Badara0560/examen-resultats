@@ -1,0 +1,20 @@
+{
+  "name": "Résultats des Examens au Mali",
+  "short_name": "Résultats Mali",
+  "description": "Vérifiez vos résultats aux examens nationaux (DEF, BAC) au Mali.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a5c2c",
+  "theme_color": "#0e7a3a",
+  "icons": [
+    { "src": "/static/icons/icon-96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "/static/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/static/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
