@@ -60,6 +60,11 @@ def init_db():
         c.execute('UPDATE etudiants SET examen = ? WHERE examen IS NULL', ('DEF',))
     except Exception:
         pass
+    # Add mention column (BAC results carry a mention)
+    try:
+        c.execute('ALTER TABLE etudiants ADD COLUMN mention TEXT')
+    except Exception:
+        pass
     c.execute('CREATE INDEX IF NOT EXISTS idx_search ON etudiants (examen, numero, academie, cap)')
     conn.commit()
     conn.close()

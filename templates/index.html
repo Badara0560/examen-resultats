@@ -55,7 +55,7 @@
         </div>
 
         <div class="form-group">
-          <label for="cap">CAP</label>
+          <label for="cap" id="cap-label">CAP</label>
           <select id="cap" name="cap" required disabled>
             <option value="">Sélectionnez d'abord une académie</option>
           </select>
@@ -101,10 +101,15 @@
       }
     };
 
+    function estBac() {
+      return (document.getElementById('examen').value || '').toUpperCase().startsWith('BAC');
+    }
+
     async function chargerAcademies() {
       const examen = document.getElementById('examen').value;
       const acadSelect = document.getElementById('academie');
       const capSelect = document.getElementById('cap');
+      document.getElementById('cap-label').textContent = estBac() ? 'Série' : 'CAP';
 
       acadSelect.disabled = true;
       acadSelect.innerHTML = '<option value="">Chargement...</option>';
@@ -146,7 +151,7 @@
       const resp = await fetch('/api/caps?' + params);
       const caps = await resp.json();
 
-      capSelect.innerHTML = '<option value="">Sélectionnez votre CAP</option>';
+      capSelect.innerHTML = '<option value="">' + (estBac() ? 'Sélectionnez votre série' : 'Sélectionnez votre CAP') + '</option>';
       caps.forEach(cap => {
         const opt = document.createElement('option');
         opt.value = cap;
@@ -188,8 +193,27 @@
 
       if (data.admis) {
         const e = data.etudiant;
-        const option = e.option_type === 'CLASS' ? 'Classique' : 'Arabe';
+        const isBac = (e.examen || '').toUpperCase().startsWith('BAC');
+        const option = e.option_type === 'CLASS' ? 'Classique' : e.option_type === 'ARABE' ? 'Arabe' : '';
         const sexeLabel = e.sexe === 'M' ? 'Masculin' : e.sexe === 'F' ? 'Féminin' : (e.sexe || '-');
+
+        let items = `
+            <div class="result-item"><dt>N° de place</dt><dd>${e.numero}</dd></div>
+            <div class="result-item"><dt>Sexe</dt><dd>${sexeLabel}</dd></div>`;
+        if (e.mention) {
+          items += `<div class="result-item"><dt>Mention</dt><dd>${e.mention}</dd></div>`;
+        }
+        if (isBac) {
+          items += `<div class="result-item"><dt>Série</dt><dd>${e.cap || '-'}</dd></div>`;
+        } else {
+          if (option) items += `<div class="result-item"><dt>Option</dt><dd>${option}</dd></div>`;
+          items += `<div class="result-item"><dt>CAP</dt><dd>${e.cap || '-'}</dd></div>`;
+        }
+        items += `<div class="result-item span-2"><dt>${isBac ? 'Établissement' : 'École'}</dt><dd>${e.ecole || '-'}</dd></div>`;
+        if (e.centre_examen) {
+          items += `<div class="result-item span-2"><dt>Centre d'examen</dt><dd>${e.centre_examen}</dd></div>`;
+        }
+        items += `<div class="result-item span-2"><dt>Académie</dt><dd>${e.academie}</dd></div>`;
 
         content.innerHTML = `
           <div class="result-head">
@@ -200,15 +224,7 @@
             <h2>${e.prenom} ${e.nom}</h2>
             <span class="result-exam">${e.examen}</span>
           </div>
-          <dl class="result-grid">
-            <div class="result-item"><dt>N° de place</dt><dd>${e.numero}</dd></div>
-            <div class="result-item"><dt>Sexe</dt><dd>${sexeLabel}</dd></div>
-            <div class="result-item"><dt>Option</dt><dd>${option}</dd></div>
-            <div class="result-item"><dt>CAP</dt><dd>${e.cap || '-'}</dd></div>
-            <div class="result-item span-2"><dt>École</dt><dd>${e.ecole || '-'}</dd></div>
-            <div class="result-item span-2"><dt>Centre d'examen</dt><dd>${e.centre_examen || '-'}</dd></div>
-            <div class="result-item span-2"><dt>Académie</dt><dd>${e.academie}</dd></div>
-          </dl>
+          <dl class="result-grid">${items}</dl>
         `;
       } else {
         content.innerHTML = `
