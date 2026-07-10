@@ -3,30 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin – DEF 2026</title>
+  <title>Connexion - Administration</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body class="login-body">
-  <div class="login-card">
-    <img src="{{ url_for('static', filename='logo.svg') }}" alt="Logo" />
-    <h2>Administration</h2>
-    <p class="login-sub">Résultats des Examens au Mali</p>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-error">{{ messages[0] }}</div>
-      {% endif %}
-    {% endwith %}
-    <form method="POST">
-      <div class="form-group">
-        <label for="password">Mot de passe</label>
-        <input type="password" id="password" name="password" required autofocus />
-      </div>
-      <button type="submit" class="btn-search">Se connecter</button>
-    </form>
-    <p style="margin-top:1.25rem;text-align:center;">
-      <a href="{{ url_for('index') }}">← Retour au site</a>
-    </p>
+  <div class="flag-strip"></div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="Résultats des Examens au Mali" />
+      <h1>Administration</h1>
+      <p class="login-sub">Résultats des Examens au Mali</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="alert alert-error" style="text-align:left;">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST">
+        <div class="form-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" required autofocus />
+        </div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+      </form>
+      <p class="form-hint" style="margin-top:1.2rem; text-align:center;">
+        <a href="{{ url_for('index') }}">Retour à la vérification des résultats</a>
+      </p>
+    </div>
   </div>
 </body>
 </html>

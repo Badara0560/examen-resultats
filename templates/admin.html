@@ -3,110 +3,206 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin – DEF 2026</title>
+  <title>Administration - Résultats des Examens au Mali</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <img src="{{ url_for('static', filename='logo.svg') }}" alt="Logo" />
-        <div>
-          <div class="brand-title">Administration</div>
-          <div class="brand-sub">RÉPUBLIQUE DU MALI</div>
+  <div class="flag-strip"></div>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="Résultats des Examens au Mali" />
+      <span class="brand-name">
+        <strong>Résultats des Examens</strong>
+        <small>Ministère de l'Éducation Nationale du Mali</small>
+      </span>
+    </a>
+    <nav class="topnav">
+      <a href="{{ url_for('index') }}">
+        <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m21 21-6-6"/></svg>
+        <span>Vérifier un résultat</span>
+      </a>
+      <a href="{{ url_for('admin') }}" class="active">
+        <svg viewBox="0 0 24 24"><path d="M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3"/></svg>
+        <span>Administration</span>
+      </a>
+      <a href="{{ url_for('admin_logout') }}">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span>Déconnexion</span>
+      </a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>Administration</h1>
+      <p>Importez des fichiers de résultats, ajoutez des candidats individuellement et gérez les données publiées.
+      {% if total %}<span class="stat-chip" style="margin-left:.4rem;"><strong>{{ "{:,}".format(total).replace(',', ' ') }}</strong> candidats en base</span>{% endif %}
+      </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+          {% if category == 'success' %}
+          <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          {% endif %}
+          {{ message }}
         </div>
-      </div>
-      <nav class="sidebar-nav">
-        <span class="nav-label">Menu</span>
-        <a class="nav-item" href="{{ url_for('index') }}">
-          <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Vérifier un résultat
-        </a>
-        <a class="nav-item active" href="{{ url_for('admin') }}">
-          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg>
-          Administration
-        </a>
-        <a class="nav-item" href="{{ url_for('admin_logout') }}">
-          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Déconnexion
-        </a>
-      </nav>
-      <div class="sidebar-foot">
-        CNECE &mdash; Mali 2026<br>
-        Designed by <strong>EMTI</strong>
-      </div>
-    </aside>
-    <main class="app-main">
-      <div class="page-head">
-        <h1>Panneau d'Administration</h1>
-        <p>Gestion des résultats DEF</p>
-      </div>
+      {% endfor %}
+    {% endwith %}
 
-      {% with messages = get_flashed_messages() %}
-        {% if messages %}
-          <div class="alert {% if '✅' in messages[0] %}alert-success{% else %}alert-error{% endif %}">
-            {{ messages[0] }}
-          </div>
-        {% endif %}
-      {% endwith %}
+    <div class="admin-grid">
 
-      <!-- Import PDF -->
+      <!-- Import file -->
       <div class="card">
-        <h2>Importer un PDF d'académie</h2>
+        <h2>Importer un fichier de résultats</h2>
         <p class="card-desc">
-          Importez un fichier PDF par académie. L'académie sera automatiquement détectée depuis le PDF.
-          Si une académie existe déjà, ses données seront remplacées.
+          PDF officiel d'académie (détection automatique) ou fichier CSV.
         </p>
-        <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data"
+              onsubmit="const b=document.getElementById('btn-import'); b.disabled=true; b.textContent='Importation en cours...';">
           <div class="form-group">
-            <label for="pdf">Fichier PDF</label>
-            <input type="file" id="pdf" name="pdf" accept=".pdf" required />
+            <label for="pdf">Fichier PDF ou CSV</label>
+            <input type="file" id="pdf" name="pdf" accept=".pdf,.csv" required />
+            <p class="form-hint">
+              PDF : les données existantes de la même académie sont remplacées.<br>
+              CSV : colonnes attendues : examen, numero, prenom, nom, sexe, statut, ecole, option_type, centre_examen, cap, academie. Les lignes sont ajoutées sans remplacer.
+            </p>
           </div>
-          <button type="submit" class="btn-search" onclick="this.disabled=true; this.innerHTML='⏳ Importation en cours...'; this.form.submit();">
-            📥 Importer
+          <button type="submit" class="btn btn-primary" id="btn-import">
+            <svg viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/></svg>
+            Importer
+          </button>
+          <p class="form-hint">L'importation d'un grand PDF peut prendre plusieurs minutes.</p>
+        </form>
+      </div>
+
+      <!-- Add single result -->
+      <div class="card">
+        <h2>Ajouter un résultat</h2>
+        <p class="card-desc">Saisie manuelle d'un candidat admis (correction ou ajout ponctuel).</p>
+        <form method="POST" action="{{ url_for('admin_ajouter') }}">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="add-examen">Examen</label>
+              <input type="text" id="add-examen" name="examen" list="list-examens" placeholder="DEF" required />
+              <datalist id="list-examens">
+                {% for ex in examens %}<option value="{{ ex }}"></option>{% endfor %}
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label for="add-numero">Numéro de place</label>
+              <input type="number" id="add-numero" name="numero" min="1" placeholder="Ex : 2045" required />
+            </div>
+            <div class="form-group">
+              <label for="add-prenom">Prénom(s)</label>
+              <input type="text" id="add-prenom" name="prenom" placeholder="Aminata" />
+            </div>
+            <div class="form-group">
+              <label for="add-nom">Nom</label>
+              <input type="text" id="add-nom" name="nom" placeholder="TRAORÉ" required />
+            </div>
+            <div class="form-group">
+              <label for="add-sexe">Sexe</label>
+              <select id="add-sexe" name="sexe">
+                <option value="">Non précisé</option>
+                <option value="F">Féminin</option>
+                <option value="M">Masculin</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="add-statut">Statut</label>
+              <select id="add-statut" name="statut">
+                <option value="REG">Régulier (REG)</option>
+                <option value="LIB">Libre (LIB)</option>
+                <option value="OFF">Officiel (OFF)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="add-option">Option</label>
+              <select id="add-option" name="option_type">
+                <option value="CLASS">Classique</option>
+                <option value="ARABE">Arabe</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="add-cap">CAP</label>
+              <input type="text" id="add-cap" name="cap" list="list-caps" placeholder="LAFIABOUGOU" />
+              <datalist id="list-caps">
+                {% for c in caps %}<option value="{{ c }}"></option>{% endfor %}
+              </datalist>
+            </div>
+            <div class="form-group span-2">
+              <label for="add-academie">Académie d'Enseignement</label>
+              <input type="text" id="add-academie" name="academie" list="list-academies"
+                     placeholder="ACADEMIE D'ENSEIGNEMENT DE BAMAKO RIVE GAUCHE" required />
+              <datalist id="list-academies">
+                {% for a in academies %}<option value="{{ a }}"></option>{% endfor %}
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label for="add-ecole">École</label>
+              <input type="text" id="add-ecole" name="ecole" placeholder="École fondamentale de..." />
+            </div>
+            <div class="form-group">
+              <label for="add-centre">Centre d'examen</label>
+              <input type="text" id="add-centre" name="centre_examen" placeholder="Centre de..." />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Ajouter le candidat
           </button>
         </form>
-        <p class="import-note">⚠️ L'importation peut prendre plusieurs minutes pour les grands fichiers.</p>
       </div>
+    </div>
 
-      <!-- Stats -->
-      <div class="card wide">
-        <h2>Données importées</h2>
-        {% if stats %}
-        <table class="stats-table">
+    <!-- Data -->
+    <div class="card" style="margin-top:1.4rem;">
+      <h2>Données publiées</h2>
+      <p class="card-desc">Candidats admis actuellement consultables par le public.</p>
+      {% if stats %}
+      <div style="overflow-x:auto;">
+        <table class="data-table">
           <thead>
             <tr>
               <th>Examen</th>
               <th>Académie</th>
               <th>Candidats admis</th>
-              <th>Action</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {% for examen, academie, total in stats %}
+            {% for examen, academie, total_a in stats %}
             <tr>
-              <td><span class="exam-tag">{{ examen }}</span></td>
+              <td><span class="tag">{{ examen }}</span></td>
               <td>{{ academie }}</td>
-              <td><strong>{{ total }}</strong></td>
-              <td>
+              <td class="num">{{ "{:,}".format(total_a).replace(',', ' ') }}</td>
+              <td style="text-align:right;">
                 <form method="POST" action="{{ url_for('admin_supprimer') }}"
                       onsubmit="return confirm('Supprimer {{ examen }} / {{ academie }} ?')">
                   <input type="hidden" name="examen" value="{{ examen }}" />
                   <input type="hidden" name="academie" value="{{ academie }}" />
-                  <button type="submit" class="btn-delete">🗑️ Supprimer</button>
+                  <button type="submit" class="btn btn-danger">Supprimer</button>
                 </form>
               </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
-        {% else %}
-        <p class="empty-msg">Aucune donnée importée. Veuillez importer un PDF.</p>
-        {% endif %}
       </div>
+      {% else %}
+      <p class="empty-msg">Aucune donnée publiée pour le moment. Importez un fichier ou ajoutez un candidat pour commencer.</p>
+      {% endif %}
+    </div>
+  </main>
 
-    </main>
-  </div>
+  <footer class="site-foot">
+    Centre National des Examens et Concours de l'Éducation (CNECE), Mali 2026<br>
+    Designed by <strong>EMTI</strong>
+  </footer>
 </body>
 </html>
