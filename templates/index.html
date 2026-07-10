@@ -22,7 +22,7 @@
         <span>Vérifier un résultat</span>
       </a>
       <a href="{{ url_for('admin') }}">
-        <svg viewBox="0 0 24 24"><path d="M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>
         <span>Administration</span>
       </a>
     </nav>
@@ -38,7 +38,7 @@
       <form id="search-form" onsubmit="rechercherResultat(event)">
 
         <div class="form-group">
-          <label for="examen">Type d'examen</label>
+          <label for="examen"><svg viewBox="0 0 24 24"><path d="M15 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5"/><path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73"/><path d="M6 9l12 0"/><path d="M6 12l3 0"/><path d="M6 15l2 0"/></svg>Type d'examen</label>
           <select id="examen" name="examen" required onchange="chargerAcademies()">
             <option value="">Sélectionnez votre examen</option>
             {% for ex in examens %}
@@ -48,21 +48,21 @@
         </div>
 
         <div class="form-group">
-          <label for="academie">Académie d'Enseignement</label>
+          <label for="academie"><svg viewBox="0 0 24 24"><path d="M3 21l18 0"/><path d="M3 10l18 0"/><path d="M5 6l7 -3l7 3"/><path d="M4 10l0 11"/><path d="M20 10l0 11"/><path d="M8 14l0 3"/><path d="M12 14l0 3"/><path d="M16 14l0 3"/></svg>Académie d'Enseignement</label>
           <select id="academie" name="academie" required disabled onchange="chargerCAPs()">
             <option value="">Sélectionnez d'abord un examen</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="cap" id="cap-label">CAP</label>
+          <label for="cap"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg><span id="cap-label">CAP</span></label>
           <select id="cap" name="cap" required disabled>
             <option value="">Sélectionnez d'abord une académie</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="numero">Numéro de place</label>
+          <label for="numero"><svg viewBox="0 0 24 24"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></svg>Numéro de place</label>
           <input type="number" id="numero" name="numero" placeholder="Ex : 2045" required min="1" />
         </div>
 
@@ -81,6 +81,7 @@
     </div>
 
     <div class="empty-state" id="empty-state" style="display:none;">
+      <svg viewBox="0 0 24 24"><path d="M12.983 8.978c3.955 -.182 7.017 -1.446 7.017 -2.978c0 -1.657 -3.582 -3 -8 -3c-1.661 0 -3.204 .19 -4.483 .515m-2.783 1.228c-.471 .382 -.734 .808 -.734 1.257c0 1.22 1.944 2.271 4.734 2.74"/><path d="M4 6v6c0 1.657 3.582 3 8 3c.986 0 1.93 -.067 2.802 -.19m3.187 -.82c1.251 -.53 2.011 -1.228 2.011 -1.99v-6"/><path d="M4 12v6c0 1.657 3.582 3 8 3c3.217 0 5.991 -.712 7.261 -1.74m.739 -3.26v-4"/><path d="M3 3l18 18"/></svg>
       <p>Aucun examen n'est disponible pour le moment.<br>
       Veuillez contacter l'administration.</p>
     </div>
@@ -197,23 +198,35 @@
         const option = e.option_type === 'CLASS' ? 'Classique' : e.option_type === 'ARABE' ? 'Arabe' : '';
         const sexeLabel = e.sexe === 'M' ? 'Masculin' : e.sexe === 'F' ? 'Féminin' : (e.sexe || '-');
 
+        // Tabler outline icons (inline, 24x24 viewBox)
+        const ic = p => `<svg viewBox="0 0 24 24">${p}</svg>`;
+        const ICO = {
+          numero:   ic('<path d="M7 12h3v4h-3z"/><path d="M10 6h-6a1 1 0 0 0 -1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1 -1v-12a1 1 0 0 0 -1 -1h-6"/><path d="M10 3m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M14 16h2"/><path d="M14 12h4"/>'),
+          sexe:     ic('<path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/>'),
+          mention:  ic('<path d="M12 9m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0"/><path d="M12 15l3.4 5.89l1.598 -3.233l3.598 .232l-3.4 -5.889"/><path d="M6.802 12l-3.4 5.89l3.598 -.233l1.598 3.232l3.4 -5.889"/>'),
+          serie:    ic('<path d="M19 4v16h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12z"/><path d="M19 16h-12a2 2 0 0 0 -2 2"/><path d="M9 8h6"/>'),
+          cap:      ic('<path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/>'),
+          ecole:    ic('<path d="M22 9l-10 -4l-10 4l10 4l10 -4v6"/><path d="M6 10.6v5.4a6 3 0 0 0 12 0v-5.4"/>'),
+          academie: ic('<path d="M3 21l18 0"/><path d="M3 10l18 0"/><path d="M5 6l7 -3l7 3"/><path d="M4 10l0 11"/><path d="M20 10l0 11"/><path d="M8 14l0 3"/><path d="M12 14l0 3"/><path d="M16 14l0 3"/>'),
+        };
+
         let items = `
-            <div class="result-item"><dt>N° de place</dt><dd>${e.numero}</dd></div>
-            <div class="result-item"><dt>Sexe</dt><dd>${sexeLabel}</dd></div>`;
+            <div class="result-item"><dt>${ICO.numero}N° de place</dt><dd>${e.numero}</dd></div>
+            <div class="result-item"><dt>${ICO.sexe}Sexe</dt><dd>${sexeLabel}</dd></div>`;
         if (e.mention) {
-          items += `<div class="result-item"><dt>Mention</dt><dd>${e.mention}</dd></div>`;
+          items += `<div class="result-item"><dt>${ICO.mention}Mention</dt><dd>${e.mention}</dd></div>`;
         }
         if (isBac) {
-          items += `<div class="result-item"><dt>Série</dt><dd>${e.cap || '-'}</dd></div>`;
+          items += `<div class="result-item"><dt>${ICO.serie}Série</dt><dd>${e.cap || '-'}</dd></div>`;
         } else {
-          if (option) items += `<div class="result-item"><dt>Option</dt><dd>${option}</dd></div>`;
-          items += `<div class="result-item"><dt>CAP</dt><dd>${e.cap || '-'}</dd></div>`;
+          if (option) items += `<div class="result-item"><dt>${ICO.serie}Option</dt><dd>${option}</dd></div>`;
+          items += `<div class="result-item"><dt>${ICO.cap}CAP</dt><dd>${e.cap || '-'}</dd></div>`;
         }
-        items += `<div class="result-item span-2"><dt>${isBac ? 'Établissement' : 'École'}</dt><dd>${e.ecole || '-'}</dd></div>`;
+        items += `<div class="result-item span-2"><dt>${ICO.ecole}${isBac ? 'Établissement' : 'École'}</dt><dd>${e.ecole || '-'}</dd></div>`;
         if (e.centre_examen) {
-          items += `<div class="result-item span-2"><dt>Centre d'examen</dt><dd>${e.centre_examen}</dd></div>`;
+          items += `<div class="result-item span-2"><dt>${ICO.cap}Centre d'examen</dt><dd>${e.centre_examen}</dd></div>`;
         }
-        items += `<div class="result-item span-2"><dt>Académie</dt><dd>${e.academie}</dd></div>`;
+        items += `<div class="result-item span-2"><dt>${ICO.academie}Académie</dt><dd>${e.academie}</dd></div>`;
 
         content.innerHTML = `
           <div class="result-head">

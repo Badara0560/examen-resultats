@@ -216,6 +216,14 @@ a:hover { text-decoration: underline; }
 .form-group input[type="file"] { padding: .55rem; cursor: pointer; }
 .form-hint { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
 
+.form-group label svg {
+  width: 15px; height: 15px;
+  vertical-align: -3px;
+  margin-right: .4rem;
+  stroke: var(--green); fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
 /* ── Buttons: pill ── */
 .btn {
   display: inline-flex;
@@ -259,6 +267,7 @@ a:hover { text-decoration: underline; }
   border: 1.5px solid color-mix(in srgb, var(--ko) 35%, transparent);
 }
 .btn-danger:hover { background: var(--ko-bg); }
+.btn-danger svg { width: 14px; height: 14px; }
 
 /* ── Alerts ── */
 .alert {
@@ -324,6 +333,13 @@ a:hover { text-decoration: underline; }
   color: var(--muted);
   margin-bottom: .15rem;
 }
+.result-item dt svg {
+  width: 13px; height: 13px;
+  vertical-align: -2.5px;
+  margin-right: .3rem;
+  stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
 .result-item dd { font-size: .95rem; font-weight: 600; }
 .result-item.span-2 { grid-column: span 2; }
 
@@ -377,6 +393,12 @@ a:hover { text-decoration: underline; }
 
 /* ── Empty state (public) ── */
 .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.empty-state svg {
+  width: 46px; height: 46px;
+  stroke: var(--muted); fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  margin-bottom: .9rem; opacity: .7;
+}
 
 /* ── Footer ── */
 .site-foot {

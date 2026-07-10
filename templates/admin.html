@@ -22,11 +22,11 @@
         <span>Vérifier un résultat</span>
       </a>
       <a href="{{ url_for('admin') }}" class="active">
-        <svg viewBox="0 0 24 24"><path d="M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>
         <span>Administration</span>
       </a>
       <a href="{{ url_for('admin_logout') }}">
-        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M10 8v-2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-2"/><path d="M15 12h-12l3 -3"/><path d="M6 15l-3 -3"/></svg>
         <span>Déconnexion</span>
       </a>
     </nav>
@@ -62,7 +62,7 @@
       <form method="POST" action="{{ url_for('admin_importer') }}" enctype="multipart/form-data"
             onsubmit="const b=document.getElementById('btn-import'); b.disabled=true; b.textContent='Importation en cours...';">
         <div class="form-group">
-          <label for="examen">Examen</label>
+          <label for="examen"><svg viewBox="0 0 24 24"><path d="M15 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5"/><path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73"/><path d="M6 9l12 0"/><path d="M6 12l3 0"/><path d="M6 15l2 0"/></svg>Examen</label>
           <input type="text" id="examen" name="examen" list="list-examens"
                  placeholder="Détection automatique" />
           <datalist id="list-examens">
@@ -71,7 +71,7 @@
           <p class="form-hint">Ex : DEF 2026, BAC 2026, BT 2026. Laissez vide pour détecter depuis le fichier.</p>
         </div>
         <div class="form-group">
-          <label for="pdf">Fichier PDF ou CSV</label>
+          <label for="pdf"><svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg>Fichier PDF ou CSV</label>
           <input type="file" id="pdf" name="pdf" accept=".pdf,.csv" required />
           <p class="form-hint">
             PDF : les données existantes de la même académie et du même examen sont remplacées.<br>
@@ -112,7 +112,7 @@
                       onsubmit="return confirm('Supprimer {{ examen }} / {{ academie }} ?')">
                   <input type="hidden" name="examen" value="{{ examen }}" />
                   <input type="hidden" name="academie" value="{{ academie }}" />
-                  <button type="submit" class="btn btn-danger">Supprimer</button>
+                  <button type="submit" class="btn btn-danger"><svg viewBox="0 0 24 24"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>Supprimer</button>
                 </form>
               </td>
             </tr>
