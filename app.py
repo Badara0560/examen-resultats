@@ -757,6 +757,74 @@ def get_caps_for_academie(examen, academie):
     return _cache_set(key, rows)
 
 
+# ── Static data export (edge-cacheable) ──────────────────────────────────────
+# The heavy path to 100k users on a tiny instance is to NOT hit the server per
+# lookup. We export the published admission lists as small static JSON files —
+# one per (examen, académie, CAP), which is exactly the slice the UI has already
+# narrowed to before a search. The browser fetches that file (hard-cached by
+# the CDN, so the origin serves it once) and does the numero lookup locally.
+# The /api/recherche endpoint stays as a fallback.
+
+import hashlib
+import json
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'static', 'data')
+
+
+def _slug(examen, academie, cap):
+    raw = f'{examen}||{academie}||{cap}'.encode('utf-8')
+    return hashlib.md5(raw).hexdigest()[:16]
+
+
+def export_static_data():
+    """Regenerate static/data/: a manifest + one JSON file per (examen,acad,cap).
+
+    Safe to call anytime; it rewrites the directory atomically-ish per file.
+    Returns the number of slice files written.
+    """
+    os.makedirs(DATA_DIR, exist_ok=True)
+    conn = get_db(read_only=True)
+    rows = conn.execute('''
+        SELECT examen, academie, cap, numero, prenom, nom, sexe, statut,
+               ecole, option_type, centre_examen, mention
+        FROM etudiants
+    ''').fetchall()
+
+    slices = {}          # slug -> {numero: {..}}
+    manifest = {}        # examen -> academie -> {cap: slug}
+    for r in rows:
+        examen = r['examen'] or ''
+        academie = r['academie'] or ''
+        cap = r['cap'] or ''
+        slug = _slug(examen, academie, cap)
+        manifest.setdefault(examen, {}).setdefault(academie, {})[cap] = slug
+        slices.setdefault(slug, {})[str(r['numero'])] = {
+            'prenom': r['prenom'] or '', 'nom': r['nom'] or '',
+            'sexe': r['sexe'] or '', 'statut': r['statut'] or '',
+            'ecole': r['ecole'] or '', 'option_type': r['option_type'] or '',
+            'centre_examen': r['centre_examen'] or '', 'cap': cap,
+            'academie': academie, 'examen': examen,
+            'mention': (r['mention'] if 'mention' in r.keys() else '') or '',
+        }
+
+    # Clear stale slice files, then write fresh ones.
+    for old in os.listdir(DATA_DIR):
+        if old.endswith('.json'):
+            try:
+                os.remove(os.path.join(DATA_DIR, old))
+            except OSError:
+                pass
+    for slug, data in slices.items():
+        with open(os.path.join(DATA_DIR, slug + '.json'), 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+    # Version stamps slice URLs (?v=) so the CDN can cache slices forever while
+    # a re-import still invalidates them the moment the manifest updates.
+    payload = {'version': int(time.time()), 'map': manifest}
+    with open(os.path.join(DATA_DIR, 'manifest.json'), 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
+    return len(slices)
+
+
 # ── Cross-cutting: security headers + caching ────────────────────────────────
 
 @app.after_request
@@ -764,9 +832,18 @@ def add_headers(resp):
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
-    # Long cache for fingerprint-free static assets (icons/css); they rarely change.
-    if request.path.startswith('/static/'):
-        resp.headers.setdefault('Cache-Control', 'public, max-age=86400')
+    # Hard-set (not setdefault): Flask's static handler sets its own
+    # Cache-Control (often "no-cache"), which would otherwise win and stop the
+    # CDN from caching the slice files — the whole point of the static path.
+    if request.path == '/static/data/manifest.json':
+        # Must refresh promptly after an admin import so new ?v= propagates.
+        resp.headers['Cache-Control'] = 'public, max-age=60'
+    elif request.path.startswith('/static/data/'):
+        # Slice files are versioned via ?v=, so they can be cached hard.
+        resp.headers['Cache-Control'] = 'public, max-age=604800, immutable'
+    elif request.path.startswith('/static/'):
+        # Long cache for fingerprint-free static assets (icons/css).
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
     return resp
 
 
@@ -951,6 +1028,11 @@ def admin_importer():
             count, academie, examen = import_pdf_to_db(filepath, use_universal=True,
                                                        examen_override=examen_override)
             flash(f'{count} candidats importés : {examen} / {academie}', 'success')
+        # Refresh the static edge-cacheable dataset so the client fast-path stays current.
+        try:
+            export_static_data()
+        except Exception as ex:
+            flash(f'Import réussi, mais régénération des données statiques échouée : {ex}', 'error')
     except Exception as e:
         flash(f'Erreur lors de l\'importation : {str(e)}', 'error')
 
@@ -971,6 +1053,10 @@ def admin_supprimer():
         conn.commit()
         conn.close()
         invalidate_cache()
+        try:
+            export_static_data()
+        except Exception:
+            pass
         flash(f'Données supprimées pour {examen} / {academie}', 'success')
 
     return redirect(url_for('admin'))

@@ -171,6 +171,35 @@
       capSelect.disabled = false;
     }
 
+    // ── Static-first lookup ──────────────────────────────────────────────
+    // The published lists are served as small per-CAP JSON files that the CDN
+    // caches at the edge, so lookups don't hit the origin. If anything about
+    // the static path fails, we transparently fall back to the /api endpoint.
+    let _manifestPromise = null;
+    function chargerManifest() {
+      if (!_manifestPromise) {
+        _manifestPromise = fetch('/static/data/manifest.json', { cache: 'no-cache' })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null);
+      }
+      return _manifestPromise;
+    }
+
+    async function rechercheStatique(examen, academie, cap, numero) {
+      const man = await chargerManifest();
+      if (!man || !man.map) return undefined;                 // fall back to API
+      const slug = ((man.map[examen] || {})[academie] || {})[cap];
+      if (!slug) return undefined;
+      const resp = await fetch('/static/data/' + slug + '.json?v=' + (man.version || 0));
+      if (!resp.ok) return undefined;
+      const slice = await resp.json();
+      const hit = slice[String(parseInt(numero, 10))];
+      if (hit) {
+        return { admis: true, etudiant: Object.assign({ numero: parseInt(numero, 10) }, hit) };
+      }
+      return { admis: false };
+    }
+
     async function rechercherResultat(e) {
       e.preventDefault();
       const examen  = document.getElementById('examen').value;
@@ -183,9 +212,15 @@
       btn.textContent = 'Recherche en cours...';
 
       try {
-        const params = new URLSearchParams({ examen, academie, cap, numero });
-        const resp = await fetch('/api/recherche?' + params);
-        const data = await resp.json();
+        let data;
+        try {
+          data = await rechercheStatique(examen, academie, cap, numero);
+        } catch (_) { data = undefined; }
+        if (data === undefined) {
+          const params = new URLSearchParams({ examen, academie, cap, numero });
+          const resp = await fetch('/api/recherche?' + params);
+          data = await resp.json();
+        }
         afficherResultat(data, numero, examen);
       } catch (err) {
         alert('Erreur de connexion. Veuillez réessayer.');
