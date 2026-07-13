@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Résultats des Examens au Mali</title>
+  <meta name="theme-color" content="#0e7a3a" />
+  <link rel="icon" type="image/svg+xml" href="logo.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Résultats Mali" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="flag-strip"></div>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <img src="logo.svg" alt="Résultats des Examens au Mali" />
+      <span class="brand-name">
+        <strong>Résultats des Examens</strong>
+      </span>
+    </a>
+    <nav class="topnav">
+      <a href="./" class="active">
+        <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m21 21-6-6"/></svg>
+        <span>Vérifier un résultat</span>
+      </a>
+      <a id="admin-link" href="#">
+        <svg viewBox="0 0 24 24"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></svg>
+        <span>Administration</span>
+      </a>
+    </nav>
+  </header>
+
+  <main class="container narrow">
+    <div class="page-head centered">
+      <h1>Résultats des Examens au Mali</h1>
+      <p>Sélectionnez votre examen, votre académie et votre CAP, puis saisissez votre numéro de place.</p>
+    </div>
+
+    <div class="card" id="search-card">
+      <form id="search-form" onsubmit="rechercherResultat(event)">
+
+        <div class="form-group">
+          <label for="examen"><svg viewBox="0 0 24 24"><path d="M15 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5"/><path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73"/><path d="M6 9l12 0"/><path d="M6 12l3 0"/><path d="M6 15l2 0"/></svg>Type d'examen</label>
+          <select id="examen" name="examen" required onchange="chargerAcademies()">
+            <option value="">Chargement…</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="academie"><svg viewBox="0 0 24 24"><path d="M3 21l18 0"/><path d="M3 10l18 0"/><path d="M5 6l7 -3l7 3"/><path d="M4 10l0 11"/><path d="M20 10l0 11"/><path d="M8 14l0 3"/><path d="M12 14l0 3"/><path d="M16 14l0 3"/></svg>Académie d'Enseignement</label>
+          <select id="academie" name="academie" required disabled onchange="chargerCAPs()">
+            <option value="">Sélectionnez d'abord un examen</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="cap"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></svg><span id="cap-label">CAP</span></label>
+          <select id="cap" name="cap" required disabled>
+            <option value="">Sélectionnez d'abord une académie</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="numero"><svg viewBox="0 0 24 24"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></svg>Numéro de place</label>
+          <input type="number" id="numero" name="numero" placeholder="Ex : 2045" required min="1" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btn-submit">
+          <svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m21 21-6-6"/></svg>
+          Rechercher
+        </button>
+      </form>
+    </div>
+
+    <div class="card" id="result-card" style="display:none;">
+      <div id="result-content"></div>
+      <div style="text-align:center; margin-top:1.4rem;">
+        <button class="btn btn-secondary" onclick="reinitialiser()">Nouvelle recherche</button>
+      </div>
+    </div>
+
+    <div class="empty-state" id="empty-state" style="display:none;">
+      <svg viewBox="0 0 24 24"><path d="M12.983 8.978c3.955 -.182 7.017 -1.446 7.017 -2.978c0 -1.657 -3.582 -3 -8 -3c-1.661 0 -3.204 .19 -4.483 .515m-2.783 1.228c-.471 .382 -.734 .808 -.734 1.257c0 1.22 1.944 2.271 4.734 2.74"/><path d="M4 6v6c0 1.657 3.582 3 8 3c.986 0 1.93 -.067 2.802 -.19m3.187 -.82c1.251 -.53 2.011 -1.228 2.011 -1.99v-6"/><path d="M4 12v6c0 1.657 3.582 3 8 3c3.217 0 5.991 -.712 7.261 -1.74m.739 -3.26v-4"/><path d="M3 3l18 18"/></svg>
+      <p>Les résultats ne sont pas encore disponibles.<br>
+      Veuillez réessayer plus tard.</p>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    Centre National des Examens et Concours de l'Éducation (CNECE), Mali 2026<br>
+    Designed by <strong>EMTI</strong>
+  </footer>
+
+  <script>
+    // ── Fully static front-end ────────────────────────────────────────────
+    // Everything (dropdowns + lookups) is driven by data/manifest.json and the
+    // per-CAP JSON slices. No server calls, so this whole page can live on a
+    // CDN and scale without limit. The Flask app is only used for /admin.
+    const ORIGIN = 'https://def-resultats-mali.onrender.com'; // admin backend
+    document.getElementById('admin-link').href = ORIGIN + '/admin';
+
+    let MANIFEST = null;
+
+    async function chargerManifest() {
+      if (MANIFEST) return MANIFEST;
+      const r = await fetch('data/manifest.json', { cache: 'no-cache' });
+      MANIFEST = await r.json();
+      return MANIFEST;
+    }
+
+    function estBac() {
+      return (document.getElementById('examen').value || '').toUpperCase().startsWith('BAC');
+    }
+
+    window.onload = async function () {
+      const sel = document.getElementById('examen');
+      try {
+        const man = await chargerManifest();
+        const examens = Object.keys(man.map || {}).sort();
+        if (examens.length === 0) throw new Error('empty');
+        sel.innerHTML = '<option value="">Sélectionnez votre examen</option>';
+        examens.forEach(ex => {
+          const o = document.createElement('option');
+          o.value = ex; o.textContent = ex; sel.appendChild(o);
+        });
+      } catch (_) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('search-card').style.display = 'none';
+      }
+    };
+
+    function chargerAcademies() {
+      const examen = document.getElementById('examen').value;
+      const acadSelect = document.getElementById('academie');
+      const capSelect = document.getElementById('cap');
+      document.getElementById('cap-label').textContent = estBac() ? 'Série' : 'CAP';
+
+      capSelect.disabled = true;
+      capSelect.innerHTML = '<option value="">Sélectionnez d\'abord une académie</option>';
+
+      if (!examen || !MANIFEST) {
+        acadSelect.disabled = true;
+        acadSelect.innerHTML = '<option value="">Sélectionnez d\'abord un examen</option>';
+        return;
+      }
+      const academies = Object.keys(MANIFEST.map[examen] || {}).sort();
+      acadSelect.innerHTML = '<option value="">Sélectionnez votre académie</option>';
+      academies.forEach(a => {
+        const o = document.createElement('option');
+        o.value = a; o.textContent = a; acadSelect.appendChild(o);
+      });
+      acadSelect.disabled = false;
+    }
+
+    function chargerCAPs() {
+      const examen = document.getElementById('examen').value;
+      const academie = document.getElementById('academie').value;
+      const capSelect = document.getElementById('cap');
+
+      if (!academie || !MANIFEST) {
+        capSelect.disabled = true;
+        capSelect.innerHTML = '<option value="">Sélectionnez d\'abord une académie</option>';
+        return;
+      }
+      const caps = Object.keys((MANIFEST.map[examen] || {})[academie] || {}).sort();
+      capSelect.innerHTML = '<option value="">' + (estBac() ? 'Sélectionnez votre série' : 'Sélectionnez votre CAP') + '</option>';
+      caps.forEach(cap => {
+        const o = document.createElement('option');
+        o.value = cap; o.textContent = cap; capSelect.appendChild(o);
+      });
+      capSelect.disabled = false;
+    }
+
+    async function rechercheStatique(examen, academie, cap, numero) {
+      const man = await chargerManifest();
+      const slug = ((man.map[examen] || {})[academie] || {})[cap];
+      if (!slug) return { admis: false };
+      const resp = await fetch('data/' + slug + '.json?v=' + (man.version || 0));
+      if (!resp.ok) return { admis: false };
+      const slice = await resp.json();
+      const hit = slice[String(parseInt(numero, 10))];
+      if (hit) {
+        return { admis: true, etudiant: Object.assign({ numero: parseInt(numero, 10) }, hit) };
+      }
+      return { admis: false };
+    }
+
+    async function rechercherResultat(e) {
+      e.preventDefault();
+      const examen  = document.getElementById('examen').value;
+      const academie = document.getElementById('academie').value;
+      const cap     = document.getElementById('cap').value;
+      const numero  = document.getElementById('numero').value.trim();
+
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.textContent = 'Recherche en cours...';
+
+      try {
+        const data = await rechercheStatique(examen, academie, cap, numero);
+        afficherResultat(data, numero, examen);
+      } catch (err) {
+        alert('Erreur. Veuillez réessayer.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m21 21-6-6"/></svg> Rechercher';
+      }
+    }
+
+    function afficherResultat(data, numero, examen) {
+      document.getElementById('search-card').style.display = 'none';
+      const card = document.getElementById('result-card');
+      const content = document.getElementById('result-content');
+      card.style.display = 'block';
+
+      if (data.admis) {
+        const e = data.etudiant;
+        const isBac = (e.examen || '').toUpperCase().startsWith('BAC');
+        const option = e.option_type === 'CLASS' ? 'Classique' : e.option_type === 'ARABE' ? 'Arabe' : '';
+        const sexeLabel = e.sexe === 'M' ? 'Masculin' : e.sexe === 'F' ? 'Féminin' : (e.sexe || '-');
+
+        const ic = p => `<svg viewBox="0 0 24 24">${p}</svg>`;
+        const ICO = {
+          numero:   ic('<path d="M7 12h3v4h-3z"/><path d="M10 6h-6a1 1 0 0 0 -1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1 -1v-12a1 1 0 0 0 -1 -1h-6"/><path d="M10 3m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M14 16h2"/><path d="M14 12h4"/>'),
+          sexe:     ic('<path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/>'),
+          mention:  ic('<path d="M12 9m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0"/><path d="M12 15l3.4 5.89l1.598 -3.233l3.598 .232l-3.4 -5.889"/><path d="M6.802 12l-3.4 5.89l3.598 -.233l1.598 3.232l3.4 -5.889"/>'),
+          serie:    ic('<path d="M19 4v16h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12z"/><path d="M19 16h-12a2 2 0 0 0 -2 2"/><path d="M9 8h6"/>'),
+          cap:      ic('<path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/>'),
+          ecole:    ic('<path d="M22 9l-10 -4l-10 4l10 4l10 -4v6"/><path d="M6 10.6v5.4a6 3 0 0 0 12 0v-5.4"/>'),
+          academie: ic('<path d="M3 21l18 0"/><path d="M3 10l18 0"/><path d="M5 6l7 -3l7 3"/><path d="M4 10l0 11"/><path d="M20 10l0 11"/><path d="M8 14l0 3"/><path d="M12 14l0 3"/><path d="M16 14l0 3"/>'),
+        };
+
+        let items = `
+            <div class="result-item"><dt>${ICO.numero}N° de place</dt><dd>${e.numero}</dd></div>
+            <div class="result-item"><dt>${ICO.sexe}Sexe</dt><dd>${sexeLabel}</dd></div>`;
+        if (e.mention) {
+          items += `<div class="result-item"><dt>${ICO.mention}Mention</dt><dd>${e.mention}</dd></div>`;
+        }
+        if (isBac) {
+          items += `<div class="result-item"><dt>${ICO.serie}Série</dt><dd>${e.cap || '-'}</dd></div>`;
+        } else {
+          if (option) items += `<div class="result-item"><dt>${ICO.serie}Option</dt><dd>${option}</dd></div>`;
+          items += `<div class="result-item"><dt>${ICO.cap}CAP</dt><dd>${e.cap || '-'}</dd></div>`;
+        }
+        items += `<div class="result-item span-2"><dt>${ICO.ecole}${isBac ? 'Établissement' : 'École'}</dt><dd>${e.ecole || '-'}</dd></div>`;
+        if (e.centre_examen) {
+          items += `<div class="result-item span-2"><dt>${ICO.cap}Centre d'examen</dt><dd>${e.centre_examen}</dd></div>`;
+        }
+        items += `<div class="result-item span-2"><dt>${ICO.academie}Académie</dt><dd>${e.academie}</dd></div>`;
+
+        content.innerHTML = `
+          <div class="result-head">
+            <div class="result-emblem ok">
+              <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+            </div>
+            <div class="result-status ok">
+              <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+              ADMIS(E)
+            </div>
+            <h2>${e.prenom} ${e.nom}</h2>
+            <span class="result-exam">${e.examen}</span>
+          </div>
+          <dl class="result-grid">${items}</dl>
+        `;
+      } else {
+        content.innerHTML = `
+          <div class="result-head">
+            <div class="result-emblem ko">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </div>
+            <div class="result-status ko">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              NON ADMIS(E)
+            </div>
+          </div>
+          <p class="ko-text">Le numéro de place <strong>${numero}</strong> ne figure pas dans la liste des admis <strong>${examen}</strong> pour l'académie et le CAP sélectionnés.</p>
+          <p class="ko-note">Vérifiez que vous avez bien saisi votre numéro, votre académie et votre CAP.</p>
+        `;
+      }
+    }
+
+    function reinitialiser() {
+      document.getElementById('search-card').style.display = 'block';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('search-form').reset();
+      document.getElementById('academie').disabled = true;
+      document.getElementById('academie').innerHTML = '<option value="">Sélectionnez d\'abord un examen</option>';
+      document.getElementById('cap').disabled = true;
+      document.getElementById('cap').innerHTML = '<option value="">Sélectionnez d\'abord une académie</option>';
+    }
+  </script>
+</body>
+</html>

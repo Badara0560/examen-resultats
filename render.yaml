@@ -1,7 +1,30 @@
+# Two services:
+#  1) examen-resultats-site — the PUBLIC results checker. A CDN-backed Render
+#     Static Site (free, unlimited bandwidth, no cold start). Serves the fully
+#     static front-end in ./static, which does all lookups client-side from the
+#     JSON shards. THIS is what 100k users hit.
+#  2) examen-resultats — the Flask app, used only for /admin (import/manage) and
+#     as an API fallback.
 services:
   - type: web
+    name: examen-resultats-site
+    runtime: static
+    staticPublishPath: ./static
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /data/manifest.json
+        name: Cache-Control
+        value: public, max-age=60
+      - path: /data/*
+        name: Cache-Control
+        value: public, max-age=604800, immutable
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+
+  - type: web
     name: examen-resultats
-    env: python
+    runtime: python
     plan: free
     healthCheckPath: /healthz
     buildCommand: pip install -r requirements.txt
