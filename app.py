@@ -869,6 +869,19 @@ def healthz():
 
 @app.route('/')
 def index():
+    # Serve the fully-static, CDN-backed page. It loads all result data from a
+    # CDN (raw.githack.com), so the origin only ships this small HTML file —
+    # the heavy read load never touches this server. The old server-rendered
+    # template remains at /app as an API-driven fallback.
+    from flask import send_from_directory
+    resp = send_from_directory(app.static_folder, 'index.html')
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
+
+
+@app.route('/app')
+def index_dynamic():
+    """API-driven fallback UI (server does the lookups). Kept for resilience."""
     examens = get_examens()
     return render_template('index.html', examens=examens)
 

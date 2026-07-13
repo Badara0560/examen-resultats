@@ -106,11 +106,20 @@
     const ORIGIN = 'https://def-resultats-mali.onrender.com'; // admin backend
     document.getElementById('admin-link').href = ORIGIN + '/admin';
 
+    // Data (manifest + per-CAP shards) is served from raw.githack.com — a
+    // Cloudflare-backed CDN that serves any public GitHub repo, pinned to a
+    // commit SHA so the edge caches it permanently. This keeps ALL the heavy
+    // read load off the origin, so the app scales to any number of users.
+    // To publish new results: regenerate static/data, push, and bump DATA_SHA
+    // to the new commit SHA.
+    const DATA_SHA = '34cd3889532cc7d5348f75172ca4de4a64f4a756';
+    const CDN_BASE = 'https://rawcdn.githack.com/Badara0560/examen-resultats/' + DATA_SHA + '/static/data';
+
     let MANIFEST = null;
 
     async function chargerManifest() {
       if (MANIFEST) return MANIFEST;
-      const r = await fetch('data/manifest.json', { cache: 'no-cache' });
+      const r = await fetch(CDN_BASE + '/manifest.json');
       MANIFEST = await r.json();
       return MANIFEST;
     }
@@ -182,7 +191,7 @@
       const man = await chargerManifest();
       const slug = ((man.map[examen] || {})[academie] || {})[cap];
       if (!slug) return { admis: false };
-      const resp = await fetch('data/' + slug + '.json?v=' + (man.version || 0));
+      const resp = await fetch(CDN_BASE + '/' + slug + '.json');
       if (!resp.ok) return { admis: false };
       const slice = await resp.json();
       const hit = slice[String(parseInt(numero, 10))];
