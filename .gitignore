@@ -7,3 +7,6 @@ uploads/
 # SQLite WAL sidecars
 database.db-wal
 database.db-shm
+
+# sauvegardes locales de la base (jamais commitees)
+database.db.avant-*
